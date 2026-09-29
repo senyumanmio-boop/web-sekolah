@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EduQuiz — Platform Kuis Interaktif Modern</title>
+<meta name="description" content="Platform kuis interaktif untuk belajar dengan cara yang menyenangkan." />
+
+<!-- Tailwind CSS via CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- Lucide Icons -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+        colors: {
+          brand: {
+            50:  '#eff6ff',
+            100: '#dbeafe',
+            500: '#3b82f6',
+            600: '#2563eb',
+            700: '#1d4ed8',
+          }
+        },
+        animation: {
+          'fade-up': 'fadeUp .6s ease-out both',
+          'float':   'float 6s ease-in-out infinite',
+          'pulse-slow': 'pulse 3s ease-in-out infinite',
+        },
+        keyframes: {
+          fadeUp: { '0%': { opacity: 0, transform: 'translateY(20px)' }, '100%': { opacity: 1, transform: 'translateY(0)' } },
+          float:  { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-12px)' } }
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Plus Jakarta Sans', sans-serif; }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, #2563eb 0%, #10b981 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Glassmorphism */
+  .glass {
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Blob decoration */
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: .5;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* Scroll reveal */
+  .reveal { opacity: 0; transform: translateY(30px); transition: all .7s ease-out; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+
+  /* Quiz option animation */
+  .quiz-option { transition: all .25s ease; }
+  .quiz-option:hover:not(.disabled) { transform: translateX(4px); }
+  .quiz-option.correct { background: #d1fae5 !important; border-color: #10b981 !important; color: #065f46 !important; }
+  .quiz-option.wrong   { background: #fee2e2 !important; border-color: #ef4444 !important; color: #991b1b !important; }
+
+  /* Progress bar animation */
+  .progress-fill { transition: width .4s ease; }
+
+  /* Hide scrollbar for quiz nav */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Modal fade */
+  .modal-enter { animation: modalIn .3s ease-out both; }
+  @keyframes modalIn { from { opacity: 0; transform: scale(.95); } to { opacity: 1; transform: scale(1); } }
+</style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+<!-- ===================== NAVBAR ===================== -->
+<header id="navbar" class="fixed top-0 inset-x-0 z-40 transition-all duration-300">
+  <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16 md:h-20">
+      <!-- Logo -->
+      <a href="#" class="flex items-center gap-2 group">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-brand-600/30 group-hover:scale-110 transition-transform">
+          <i data-lucide="graduation-cap" class="w-6 h-6 text-white"></i>
+        </div>
+        <span class="font-extrabold text-xl tracking-tight">Edu<span class="gradient-text">Quiz</span></span>
+      </a>
+
+      <!-- Desktop Menu -->
+      <ul class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+        <li><a href="#home"       class="hover:text-brand-600 transition">Beranda</a></li>
+        <li><a href="#kategori"   class="hover:text-brand-600 transition">Kategori</a></li>
+        <li><a href="#fitur"      class="hover:text-brand-600 transition">Fitur</a></li>
+        <li><a href="#tentang"    class="hover:text-brand-600 transition">Tentang</a></li>
+        <li><a href="#kontak"     class="hover:text-brand-600 transition">Kontak</a></li>
+      </ul>
+
+      <!-- CTA -->
+      <div class="hidden md:flex items-center gap-3">
+        <button onclick="openAuth('login')" class="px-4 py-2 text-sm font-semibold text-slate-700 hover:text-brand-600 transition">Masuk</button>
+        <button onclick="openAuth('register')" class="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-brand-600 to-brand-700 rounded-xl shadow-lg shadow-brand-600/30 hover:shadow-xl hover:-translate-y-0.5 transition-all">Daftar Gratis</button>
+      </div>
+
+      <!-- Mobile Toggle -->
+      <button id="menuToggle" class="md:hidden p-2 rounded-lg hover:bg-slate-100 transition">
+        <i data-lucide="menu" class="w-6 h-6"></i>
+      </button>
+    </div>
+
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="md:hidden hidden pb-4 space-y-1">
+      <a href="#home"     class="block px-4 py-2 rounded-lg hover:bg-slate-100">Beranda</a>
+      <a href="#kategori" class="block px-4 py-2 rounded-lg hover:bg-slate-100">Kategori</a>
+      <a href="#fitur"    class="block px-4 py-2 rounded-lg hover:bg-slate-100">Fitur</a>
+      <a href="#tentang"  class="block px-4 py-2 rounded-lg hover:bg-slate-100">Tentang</a>
+      <a href="#kontak"   class="block px-4 py-2 rounded-lg hover:bg-slate-100">Kontak</a>
+      <div class="flex gap-2 pt-2 px-4">
+        <button onclick="openAuth('login')"    class="flex-1 py-2 rounded-xl border border-slate-200 font-semibold">Masuk</button>
+        <button onclick="openAuth('register')" class="flex-1 py-2 rounded-xl bg-brand-600 text-white font-semibold">Daftar</button>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<!-- ===================== HERO ===================== -->
+<section id="home" class="relative pt-28 md:pt-36 pb-20 overflow-hidden">
+  <!-- Decorative blobs -->
+  <div class="blob w-72 h-72 bg-brand-500 top-10 -left-20"></div>
+  <div class="blob w-96 h-96 bg-emerald-400 bottom-0 -right-20"></div>
+
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-12 items-center">
+    <!-- Text -->
+    <div class="animate-fade-up">
+      <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-50 text-brand-700 text-xs font-semibold border border-brand-100">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        Platform Edukasi #1 di Indonesia
+      </span>
+
+      <h1 class="mt-6 text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight">
+        Belajar Lebih Seru dengan <span class="gradient-text">Kuis Interaktif</span>
+      </h1>
+
+      <p class="mt-6 text-lg text-slate-600 max-w-xl leading-relaxed">
+        Asah pengetahuanmu lewat ribuan kuis interaktif di berbagai bidang. Dirancang dengan metode pembelajaran modern agar kamu belajar lebih cepat, menyenangkan, dan terukur.
+      </p>
+
+      <div class="mt-8 flex flex-wrap gap-4">
+        <button onclick="openQuiz()" class="group inline-flex items-center gap-2 px-7 py-3.5 bg-gradient-to-r from-brand-600 to-brand-700 text-white font-semibold rounded-2xl shadow-xl shadow-brand-600/30 hover:shadow-2xl hover:-translate-y-1 transition-all">
+          Coba Kuis Sekarang
+          <i data-lucide="arrow-right" class="w-5 h-5 group-hover:translate-x-1 transition"></i>
+        </button>
+        <a href="#kategori" class="inline-flex items-center gap-2 px-7 py-3.5 bg-white text-slate-700 font-semibold rounded-2xl border border-slate-200 hover:border-brand-300 hover:text-brand-600 transition">
+          <i data-lucide="play-circle" class="w-5 h-5"></i>
+          Lihat Kategori
+        </a>
+      </div>
+
+      <!-- Stats -->
+      <div class="mt-12 grid grid-cols-3 gap-6 max-w-md">
+        <div>
+          <div class="text-2xl sm:text-3xl font-extrabold gradient-text">50K+</div>
+          <div class="text-xs text-slate-500 mt-1">Pengguna Aktif</div>
+        </div>
+        <div>
+          <div class="text-2xl sm:text-3xl font-extrabold gradient-text">1.2K</div>
+          <div class="text-xs text-slate-500 mt-1">Kuis Tersedia</div>
+        </div>
+        <div>
+          <div class="text-2xl sm:text-3xl font-extrabold gradient-text">4.9★</div>
+          <div class="text-xs text-slate-500 mt-1">Rating Pengguna</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Illustration -->
+    <div class="relative animate-fade-up" style="animation-delay:.2s">
+      <div class="relative bg-white rounded-3xl shadow-2xl shadow-brand-600/10 p-6 md:p-8 border border-slate-100 animate-float">
+        <!-- Mock quiz card -->
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+              <i data-lucide="brain" class="w-6 h-6 text-white"></i>
+            </div>
+            <div>
+              <div class="font-bold">Kuis Logika Dasar</div>
+              <div class="text-xs text-slate-500">10 soal · 15 menit</div>
+            </div>
+          </div>
+          <span class="px-3 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700">Populer</span>
+        </div>
+
+        <div class="mb-4">
+          <div class="flex justify-between text-xs text-slate-500 mb-2">
+            <span>Progres</span><span>6/10</span>
+          </div>
+          <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div class="h-full w-3/5 bg-gradient-to-r from-brand-500 to-emerald-500 rounded-full"></div>
+          </div>
+        </div>
+
+        <div class="bg-slate-50 rounded-2xl p-5 mb-4">
+          <div class="text-xs text-slate-500 mb-2">Soal 6 dari 10</div>
+          <div class="font-semibold text-slate-800">Apa hasil dari 2 + 2 × 3?</div>
+        </div>
+
+        <div class="space-y-2">
+          <div class="px-4 py-3 rounded-xl border border-slate-200 text-sm">A. 12</div>
+          <div class="px-4 py-3 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-sm font-semibold text-emerald-700 flex items-center justify-between">
+            B. 8 <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+          </div>
+          <div class="px-4 py-3 rounded-xl border border-slate-200 text-sm">C. 10</div>
+          <div class="px-4 py-3 rounded-xl border border-slate-200 text-sm">D. 6</div>
+        </div>
+      </div>
+
+      <!-- Floating badges -->
+      <div class="absolute -top-4 -left-4 bg-white rounded-2xl shadow-xl p-3 flex items-center gap-2 animate-pulse-slow">
+        <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+          <i data-lucide="trophy" class="w-5 h-5 text-emerald-600"></i>
+        </div>
+        <div>
+          <div class="text-xs text-slate-500">Skor Tertinggi</div>
+          <div class="font-bold text-sm">980 pts</div>
+        </div>
+      </div>
+      <div class="absolute -bottom-4 -right-4 bg-white rounded-2xl shadow-xl p-3 flex items-center gap-2 animate-pulse-slow" style="animation-delay:1.5s">
+        <div class="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center">
+          <i data-lucide="flame" class="w-5 h-5 text-brand-600"></i>
+        </div>
+        <div>
+          <div class="text-xs text-slate-500">Streak</div>
+          <div class="font-bold text-sm">7 Hari 🔥</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== KATEGORI ===================== -->
+<section id="kategori" class="py-20 bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-2xl mx-auto reveal">
+      <span class="text-sm font-semibold text-brand-600 uppercase tracking-wider">Kategori Kuis</span>
+      <h2 class="mt-2 text-3xl sm:text-4xl font-extrabold tracking-tight">Pilih Bidang yang Kamu Sukai</h2>
+      <p class="mt-4 text-slate-600">Ribuan kuis berkualitas dari berbagai topik, disusun oleh para ahli untuk membantumu berkembang.</p>
+    </div>
+
+    <div class="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <!-- Card -->
+      <div class="reveal group relative bg-gradient-to-br from-brand-50 to-white rounded-2xl p-6 border border-slate-100 hover:shadow-2xl hover:shadow-brand-600/10 hover:-translate-y-2 transition-all duration-300 cursor-pointer" onclick="openQuiz('Teknologi')">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-lg shadow-brand-600/30 group-hover:scale-110 transition">
+          <i data-lucide="code-2" class="w-7 h-7 text-white"></i>
+        </div>
+        <h3 class="mt-5 font-bold text-lg">Teknologi & Coding</h3>
+        <p class="mt-2 text-sm text-slate-600">HTML, CSS, JavaScript, Python, dan banyak lagi.</p>
+        <div class="mt-4 flex items-center justify-between text-xs">
+          <span class="text-slate-500">245 Kuis</span>
+          <span class="text-brand-600 font-semibold flex items-center gap-1 group-hover:gap-2 transition-all">Mulai <i data-lucide="arrow-right" class="w-4 h-4"></i></span>
+        </div>
+      </div>
+
+      <div class="reveal group relative bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-6 border border-slate-100 hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-2 transition-all duration-300 cursor-pointer" onclick="openQuiz('Sains')">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition">
+          <i data-lucide="flask-conical" class="w-7 h-7 text-white"></i>
+        </div>
+        <h3 class="mt-5 font-bold text-lg">Sains & Alam</h3>
+        <p class="mt-2 text-sm text-slate-600">Fisika, Kimia, Biologi, dan astronomi seru.</p>
+        <div class="mt-4 flex items-center justify-between text-xs">
+          <span class="text-slate-500">189 Kuis</span>
+          <span class="text-emerald-600 font-semibold flex items-center gap-1 group-hover:gap-2 transition-all">Mulai <i data-lucide="arrow-right" class="w-4 h-4"></i></span>
+        </div>
+      </div>
+
+      <div class="reveal group relative bg-gradient-to-br from-amber-50 to-white rounded-2xl p-6 border border-slate-100 hover:shadow-2xl hover:shadow-amber-500/10 hover:-translate-y-2 transition-all duration-300 cursor-pointer" onclick="openQuiz('Matematika')">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30 group-hover:scale-110 transition">
+          <i data-lucide="calculator" class="w-7 h-7 text-white"></i>
+        </div>
+        <h3 class="mt-5 font-bold text-lg">Matematika</h3>
+        <p class="mt-2 text-sm text-slate-600">Aljabar, geometri, statistika, dan logika.</p>
+        <div class="mt-4 flex items-center justify-between text-xs">
+          <span class="text-slate-500">312 Kuis</span>
+          <span class="text-amber-600 font-semibold flex items-center gap-1 group-hover:gap-2 transition-all">Mulai <i data-lucide="arrow-right" class="w-4 h-4"></i></span>
+        </div>
+      </div>
+
+      <div class="reveal group relative bg-gradient-to-br from-rose-50 to-white rounded-2xl p-6 border border-slate-100 hover:shadow-2xl hover:shadow-rose-500/10 hover:-translate-y-2 transition-all duration-300 cursor-pointer" onclick="openQuiz('Bahasa')">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-lg shadow-rose-500/30 group-hover:scale-110 transition">
+          <i data-lucide="languages" class="w-7 h-7 text-white"></i>
+        </div>
+        <h3 class="mt-5 font-bold text-lg">Bahasa Asing</h3>
+        <p class="mt-2 text-sm text-slate-600">Inggris, Jepang, Mandarin, dan lainnya.</p>
+        <div class="mt-4 flex items-center justify-between text-xs">
+          <span class="text-slate-500">156 Kuis</span>
+          <span class="text-rose-600 font-semibold flex items-center gap-1 group-hover:gap-2 transition-all">Mulai <i data-lucide="arrow-right" class="w-4 h-4"></i></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FITUR ===================== -->
+<section id="fitur" class="py-20 bg-slate-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-2xl mx-auto reveal">
+      <span class="text-sm font-semibold text-brand-600 uppercase tracking-wider">Mengapa EduQuiz?</span>
+      <h2 class="mt-2 text-3xl sm:text-4xl font-extrabold tracking-tight">Dirancang untuk Pengalaman Belajar Terbaik</h2>
+    </div>
+
+    <div class="mt-14 grid md:grid-cols-3 gap-6">
+      <div class="reveal bg-white rounded-2xl p-8 border border-slate-100 hover:shadow-xl transition">
+        <div class="w-12 h-12 rounded-xl bg-brand-100 flex items-center justify-center mb-5">
+          <i data-lucide="zap" class="w-6 h-6 text-brand-600"></i>
+        </div>
+        <h3 class="font-bold text-lg">Belajar Cepat & Efektif</h3>
+        <p class="mt-2 text-slate-600 text-sm leading-relaxed">Metode spaced repetition dan kuis adaptif membuat materi lebih mudah melekat di ingatan.</p>
+      </div>
+      <div class="reveal bg-white rounded-2xl p-8 border border-slate-100 hover:shadow-xl transition">
+        <div class="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center mb-5">
+          <i data-lucide="bar-chart-3" class="w-6 h-6 text-emerald-600"></i>
+        </div>
+        <h3 class="font-bold text-lg">Progres Terukur</h3>
+        <p class="mt-2 text-slate-600 text-sm leading-relaxed">Pantau perkembangan belajarmu dengan dashboard analitik yang detail dan insightful.</p>
+      </div>
+      <div class="reveal bg-white rounded-2xl p-8 border border-slate-100 hover:shadow-xl transition">
+        <div class="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center mb-5">
+          <i data-lucide="award" class="w-6 h-6 text-amber-600"></i>
+        </div>
+        <h3 class="font-bold text-lg">Sertifikat Resmi</h3>
+        <p class="mt-2 text-slate-600 text-sm leading-relaxed">Dapatkan sertifikat digital yang bisa kamu bagikan di LinkedIn atau CV-mu.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TENTANG ===================== -->
+<section id="tentang" class="py-20 bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-12 items-center">
+    <div class="reveal">
+      <span class="text-sm font-semibold text-brand-600 uppercase tracking-wider">Tentang Kami</span>
+      <h2 class="mt-2 text-3xl sm:text-4xl font-extrabold tracking-tight">Misi Kami: Membuat Belajar Jadi Menyenangkan</h2>
+      <p class="mt-5 text-slate-600 leading-relaxed">
+        EduQuiz lahir dari keyakinan bahwa setiap orang berhak mendapatkan akses pendidikan berkualitas. Kami menggabungkan teknologi modern dengan pedagogi terbaik untuk menciptakan pengalaman belajar yang personal, interaktif, dan menyenangkan.
+      </p>
+      <ul class="mt-6 space-y-3">
+        <li class="flex items-start gap-3"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-500 mt-0.5"></i><span>Konten disusun oleh educator & ahli bidang</span></li>
+        <li class="flex items-start gap-3"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-500 mt-0.5"></i><span>Akses dari perangkat manapun, kapanpun</span></li>
+        <li class="flex items-start gap-3"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-500 mt-0.5"></i><span>Komunitas pembelajar aktif & suportif</span></li>
+      </ul>
+    </div>
+    <div class="reveal grid grid-cols-2 gap-4">
+      <div class="bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl p-6 text-white">
+        <i data-lucide="users" class="w-8 h-8 mb-3 opacity-80"></i>
+        <div class="text-3xl font-extrabold">50K+</div>
+        <div class="text-sm opacity-90">Pelajar Aktif</div>
+      </div>
+      <div class="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 text-white translate-y-6">
+        <i data-lucide="book-open" class="w-8 h-8 mb-3 opacity-80"></i>
+        <div class="text-3xl font-extrabold">1.2K</div>
+        <div class="text-sm opacity-90">Kuis Tersedia</div>
+      </div>
+      <div class="bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl p-6 text-white">
+        <i data-lucide="globe" class="w-8 h-8 mb-3 opacity-80"></i>
+        <div class="text-3xl font-extrabold">34</div>
+        <div class="text-sm opacity-90">Negara</div>
+      </div>
+      <div class="bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl p-6 text-white translate-y-6">
+        <i data-lucide="heart" class="w-8 h-8 mb-3 opacity-80"></i>
+        <div class="text-3xl font-extrabold">4.9★</div>
+        <div class="text-sm opacity-90">Rating Pengguna</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CTA ===================== -->
+<section class="py-20 bg-gradient-to-br from-brand-600 via-brand-700 to-emerald-600 relative overflow-hidden">
+  <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 20% 20%, white 2px, transparent 2px), radial-gradient(circle at 80% 60%, white 2px, transparent 2px); background-size: 60px 60px;"></div>
+  <div class="relative max-w-4xl mx-auto px-4 text-center text-white">
+    <h2 class="text-3xl sm:text-4xl font-extrabold">Siap Mulai Perjalanan Belajarmu?</h2>
+    <p class="mt-4 text-lg opacity-90">Bergabung dengan 50.000+ pelajar lainnya. Gratis selamanya untuk memulai.</p>
+    <button onclick="openQuiz()" class="mt-8 inline-flex items-center gap-2 px-8 py-4 bg-white text-brand-700 font-bold rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all">
+      Mulai Kuis Pertama
+      <i data-lucide="arrow-right" class="w-5 h-5"></i>
+    </button>
+  </div>
+</section>
+
+<!-- ===================== KONTAK / FOOTER ===================== -->
+<footer id="kontak" class="bg-slate-900 text-slate-300 pt-16 pb-8">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid md:grid-cols-4 gap-10">
+      <div>
+        <div class="flex items-center gap-2">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-emerald-500 flex items-center justify-center">
+            <i data-lucide="graduation-cap" class="w-6 h-6 text-white"></i>
+          </div>
+          <span class="font-extrabold text-xl text-white">EduQuiz</span>
+        </div>
+        <p class="mt-4 text-sm leading-relaxed">Platform kuis interaktif modern untuk belajar dengan cara yang menyenangkan dan terukur.</p>
+        <div class="mt-5 flex gap-3">
+          <a href="#" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-brand-600 flex items-center justify-center transition"><i data-lucide="twitter" class="w-4 h-4"></i></a>
+          <a href="#" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-brand-600 flex items-center justify-center transition"><i data-lucide="instagram" class="w-4 h-4"></i></a>
+          <a href="#" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-brand-600 flex items-center justify-center transition"><i data-lucide="facebook" class="w-4 h-4"></i></a>
+          <a href="#" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-brand-600 flex items-center justify-center transition"><i data-lucide="youtube" class="w-4 h-4"></i></a>
+        </div>
+      </div>
+      <div>
+        <h4 class="text-white font-bold mb-4">Produk</h4>
+        <ul class="space-y-2 text-sm">
+          <li><a href="#" class="hover:text-white transition">Kuis</a></li>
+          <li><a href="#" class="hover:text-white transition">Kursus</a></li>
+          <li><a href="#" class="hover:text-white transition">Sertifikat</a></li>
+          <li><a href="#" class="hover:text-white transition">Leaderboard</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-white font-bold mb-4">Perusahaan</h4>
+        <ul class="space-y-2 text-sm">
+          <li><a href="#tentang" class="hover:text-white transition">Tentang</a></li>
+          <li><a href="#" class="hover:text-white transition">Karir</a></li>
+          <li><a href="#" class="hover:text-white transition">Blog</a></li>
+          <li><a href="#" class="hover:text-white transition">Press</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-white font-bold mb-4">Kontak</h4>
+        <ul class="space-y-3 text-sm">
+          <li class="flex items-center gap-2"><i data-lucide="mail" class="w-4 h-4"></i> hello@eduquiz.id</li>
+          <li class="flex items-center gap-2"><i data-lucide="phone" class="w-4 h-4"></i> +62 812-3456-7890</li>
+          <li class="flex items-center gap-2"><i data-lucide="map-pin" class="w-4 h-4"></i> Jakarta, Indonesia</li>
+        </ul>
+      </div>
+    </div>
+    <div class="mt-12 pt-6 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500">
+      <div>© 2026 EduQuiz. All rights reserved.</div>
+      <div class="flex gap-5">
+        <a href="#" class="hover:text-white transition">Kebijakan Privasi</a>
+        <a href="#" class="hover:text-white transition">Syarat & Ketentuan</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- ===================== MODAL: AUTH ===================== -->
+<div id="authModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+  <div class="modal-enter bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 relative">
+    <button onclick="closeAuth()" class="absolute top-4 right-4 w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center transition">
+      <i data-lucide="x" class="w-5 h-5"></i>
+    </button>
+    <div class="text-center">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-brand-500 to-emerald-500 flex items-center justify-center shadow-lg">
+        <i data-lucide="graduation-cap" class="w-7 h-7 text-white"></i>
+      </div>
+      <h3 id="authTitle" class="mt-4 text-2xl font-extrabold">Masuk ke EduQuiz</h3>
+      <p class="mt-1 text-sm text-slate-500">Lanjutkan perjalanan belajarmu</p>
+    </div>
+    <form onsubmit="event.preventDefault(); alert('Demo: Form dikirim!'); closeAuth();" class="mt-6 space-y-4">
+      <div id="authNameField" class="hidden">
+        <label class="text-sm font-semibold">Nama Lengkap</label>
+        <input type="text" class="mt-1 w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition" placeholder="John Doe" />
+      </div>
+      <div>
+        <label class="text-sm font-semibold">Email</label>
+        <input type="email" required class="mt-1 w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition" placeholder="kamu@email.com" />
+      </div>
+      <div>
+        <label class="text-sm font-semibold">Password</label>
+        <input type="password" required class="mt-1 w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition" placeholder="••••••••" />
+      </div>
+      <button class="w-full py-3 bg-gradient-to-r from-brand-600 to-brand-700 text-white font-semibold rounded-xl shadow-lg shadow-brand-600/30 hover:shadow-xl transition">
+        <span id="authBtnText">Masuk</span>
+      </button>
+      <p class="text-center text-sm text-slate-500">
+        <span id="authSwitchText">Belum punya akun?</span>
+        <button type="button" id="authSwitchBtn" onclick="toggleAuth()" class="font-semibold text-brand-600 hover:underline ml-1">Daftar</button>
+      </p>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== MODAL: QUIZ ===================== -->
+<div id="quizModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+  <div class="modal-enter bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[95vh] overflow-hidden flex flex-col">
+
+    <!-- Quiz Header -->
+    <div class="p-6 border-b border-slate-100 bg-gradient-to-r from-brand-50 to-emerald-50">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <div class="text-xs text-slate-500 font-semibold uppercase tracking-wider" id="quizCategory">Kuis Umum</div>
+          <div class="text-xl font-extrabold">Pengetahuan Teknologi</div>
+        </div>
+        <div class="flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-sm">
+          <i data-lucide="clock" class="w-4 h-4 text-brand-600"></i>
+          <span id="timer" class="font-bold text-brand-700 tabular-nums">10:00</span>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div class="flex items-center justify-between text-xs text-slate-500 mb-2">
+        <span>Soal <span id="currentQ" class="font-bold text-slate-800">1</span> dari <span id="totalQ">5</span></span>
+        <span id="progressPercent" class="font-bold text-brand-600">0%</span>
+      </div>
+      <div class="h-2 bg-white rounded-full overflow-hidden shadow-inner">
+        <div id="progressBar" class="progress-fill h-full bg-gradient-to-r from-brand-500 to-emerald-500 rounded-full" style="width:0%"></div>
+      </div>
+
+      <!-- Question nav dots -->
+      <div id="questionNav" class="mt-4 flex gap-2 overflow-x-auto no-scrollbar"></div>
+    </div>
+
+    <!-- Quiz Body -->
+    <div class="p-6 overflow-y-auto flex-1">
+      <div id="questionText" class="text-lg font-semibold leading-relaxed mb-6"></div>
+      <div id="optionsContainer" class="space-y-3"></div>
+    </div>
+
+    <!-- Quiz Footer -->
+    <div class="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
+      <button id="prevBtn" onclick="prevQuestion()" class="px-5 py-2.5 rounded-xl border border-slate-200 font-semibold hover:bg-white transition disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+        <i data-lucide="chevron-left" class="w-4 h-4 inline-block"></i> Sebelumnya
+      </button>
+      <button id="nextBtn" onclick="nextQuestion()" class="px-5 py-2.5 rounded-xl bg-brand-600 text-white font-semibold hover:bg-brand-700 transition disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+        Selanjutnya <i data-lucide="chevron-right" class="w-4 h-4 inline-block"></i>
+      </button>
+      <button onclick="closeQuiz()" class="px-4 py-2.5 rounded-xl text-slate-500 hover:text-slate-700 text-sm font-semibold transition">Keluar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: RESULT ===================== -->
+<div id="resultModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto">
+  <div class="modal-enter bg-white rounded-3xl shadow-2xl max-w-2xl w-full my-8 overflow-hidden">
+    <div class="p-8 text-center bg-gradient-to-br from-brand-600 via-brand-700 to-emerald-600 text-white relative overflow-hidden">
+      <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 30% 30%, white 2px, transparent 2px); background-size: 40px 40px;"></div>
+      <div class="relative">
+        <div id="resultEmoji" class="text-6xl mb-3">🎉</div>
+        <h2 id="resultTitle" class="text-3xl font-extrabold">Luar Biasa!</h2>
+        <p id="resultSubtitle" class="mt-2 opacity-90">Kamu menyelesaikan kuis dengan sangat baik</p>
+
+        <div class="mt-6 inline-flex items-center gap-6 bg-white/15 backdrop-blur rounded-2xl px-6 py-4 border border-white/20">
+          <div>
+            <div class="text-xs opacity-80 uppercase tracking-wider">Skor</div>
+            <div id="resultScore" class="text-3xl font-extrabold">0/5</div>
+          </div>
+          <div class="w-px h-10 bg-white/30"></div>
+          <div>
+            <div class="text-xs opacity-80 uppercase tracking-wider">Persentase</div>
+            <div id="resultPercent" class="text-3xl font-extrabold">0%</div>
+          </div>
+          <div class="w-px h-10 bg-white/30"></div>
+          <div>
+            <div class="text-xs opacity-80 uppercase tracking-wider">Waktu</div>
+            <div id="resultTime" class="text-3xl font-extrabold">00:00</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Review -->
+    <div class="p-6">
+      <h3 class="font-bold text-lg mb-4">Review Jawaban</h3>
+      <div id="reviewContainer" class="space-y-3 max-h-64 overflow-y-auto pr-2"></div>
+
+      <div class="mt-6 flex flex-wrap gap-3">
+        <button onclick="restartQuiz()" class="flex-1 py-3 bg-gradient-to-r from-brand-600 to-brand-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition">
+          <i data-lucide="rotate-ccw" class="w-4 h-4 inline-block"></i> Ulangi Kuis
+        </button>
+        <button onclick="closeResult()" class="flex-1 py-3 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition">
+          Kembali ke Beranda
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TOAST ===================== -->
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden px-5 py-3 bg-slate-900 text-white rounded-xl shadow-2xl text-sm font-semibold"></div>
+
+<!-- ===================== JAVASCRIPT ===================== -->
+<script>
+  // ---------- Icon init ----------
+  lucide.createIcons();
+
+  // ---------- Navbar scroll effect ----------
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 20) {
+      navbar.classList.add('glass', 'shadow-sm', 'border-b', 'border-slate-200/50');
+    } else {
+      navbar.classList.remove('glass', 'shadow-sm', 'border-b', 'border-slate-200/50');
+    }
+  });
+
+  // ---------- Mobile menu ----------
+  const menuToggle = document.getElementById('menuToggle');
+  const mobileMenu = document.getElementById('mobileMenu');
+  menuToggle.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+  mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => mobileMenu.classList.add('hidden')));
+
+  // ---------- Scroll reveal ----------
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+  // ---------- Toast ----------
+  function showToast(msg, duration = 2500) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.remove('hidden');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.add('hidden'), duration);
+  }
+
+  // ---------- Auth Modal ----------
+  let authMode = 'login';
+  function openAuth(mode) {
+    authMode = mode;
+    updateAuthUI();
+    const m = document.getElementById('authModal');
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+  }
+  function closeAuth() {
+    const m = document.getElementById('authModal');
+    m.classList.add('hidden');
+    m.classList.remove('flex');
+  }
+  function toggleAuth() {
+    authMode = authMode === 'login' ? 'register' : 'login';
+    updateAuthUI();
+  }
+  function updateAuthUI() {
+    const isLogin = authMode === 'login';
+    document.getElementById('authTitle').textContent       = isLogin ? 'Masuk ke EduQuiz' : 'Buat Akun Baru';
+    document.getElementById('authBtnText').textContent     = isLogin ? 'Masuk' : 'Daftar Sekarang';
+    document.getElementById('authSwitchText').textContent  = isLogin ? 'Belum punya akun?' : 'Sudah punya akun?';
+    document.getElementById('authSwitchBtn').textContent   = isLogin ? 'Daftar' : 'Masuk';
+    document.getElementById('authNameField').classList.toggle('hidden', isLogin);
+  }
+
+  // ---------- QUIZ DATA ----------
+  const quizData = [
+    {
+      q: "Apa kepanjangan dari HTML?",
+      options: ["Hyper Text Markup Language", "High Tech Modern Language", "Home Tool Markup Language", "Hyperlinks Text Mark Language"],
+      answer: 0
+    },
+    {
+      q: "Bahasa pemrograman apa yang paling umum digunakan untuk membuat website interaktif di sisi klien?",
+      options: ["Python", "Java", "JavaScript", "C++"],
+      answer: 2
+    },
+    {
+      q: "CSS framework utility-first yang populer adalah...",
+      options: ["Bootstrap", "Tailwind CSS", "Foundation", "Bulma"],
+      answer: 1
+    },
+    {
+      q: "Apa fungsi utama dari Git?",
+      options: ["Menjalankan server web", "Version control system", "Database management", "Design UI/UX"],
+      answer: 1
+    },
+    {
+      q: "Manakah yang BUKAN merupakan bahasa pemrograman?",
+      options: ["Python", "Rust", "HTML", "Go"],
+      answer: 2
+    }
+  ];
+
+  // ---------- QUIZ STATE ----------
+  let currentQuestion = 0;
+  let userAnswers = new Array(quizData.length).fill(null);
+  let timerInterval = null;
+  let timeLeft = 10 * 60; // 10 menit
+  let startTime = 0;
+
+  function openQuiz(category = 'Umum') {
+    document.getElementById('quizCategory').textContent = `Kuis ${category}`;
+    currentQuestion = 0;
+    userAnswers = new Array(quizData.length).fill(null);
+    timeLeft = 10 * 60;
+    startTime = Date.now();
+
+    document.getElementById('totalQ').textContent = quizData.length;
+
+    const m = document.getElementById('quizModal');
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+
+    renderQuestionNav();
+    renderQuestion();
+    startTimer();
+  }
+
+  function closeQuiz() {
+    if (confirm('Yakin ingin keluar? Progres kuis akan hilang.')) {
+      stopTimer();
+      const m = document.getElementById('quizModal');
+      m.classList.add('hidden');
+      m.classList.remove('flex');
+    }
+  }
+
+  function renderQuestionNav() {
+    const nav = document.getElementById('questionNav');
+    nav.innerHTML = '';
+    quizData.forEach((_, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'w-9 h-9 rounded-lg text-sm font-bold flex-shrink-0 transition';
+      updateNavBtn(btn, i);
+      btn.onclick = () => { currentQuestion = i; renderQuestion(); };
+      nav.appendChild(btn);
+    });
+  }
+
+  function updateNavBtn(btn, i) {
+    if (i === currentQuestion) {
+      btn.className = 'w-9 h-9 rounded-lg text-sm font-bold flex-shrink-0 bg-brand-600 text-white shadow-lg shadow-brand-600/30';
+    } else if (userAnswers[i] !== null) {
+      btn.className = 'w-9 h-9 rounded-lg text-sm font-bold flex-shrink-0 bg-emerald-100 text-emerald-700';
+    } else {
+      btn.className = 'w-9 h-9 rounded-lg text-sm font-bold flex-shrink-0 bg-white text-slate-600 border border-slate-200 hover:border-brand-300';
+    }
+    btn.textContent = i + 1;
+  }
+
+  function refreshNav() {
+    const btns = document.getElementById('questionNav').children;
+    for (let i = 0; i < btns.length; i++) updateNavBtn(btns[i], i);
+  }
+
+  function renderQuestion() {
+    const data = quizData[currentQuestion];
+    document.getElementById('currentQ').textContent = currentQuestion + 1;
+
+    // Progress
+    const answeredCount = userAnswers.filter(a => a !== null).length;
+    const percent = Math.round((answeredCount / quizData.length) * 100);
+    document.getElementById('progressBar').style.width = percent + '%';
+    document.getElementById('progressPercent').textContent = percent + '%';
+
+    // Question
+    document.getElementById('questionText').textContent = data.q;
+
+    // Options
+    const container = document.getElementById('optionsContainer');
+    container.innerHTML = '';
+    const letters = ['A', 'B', 'C', 'D'];
+    data.options.forEach((opt, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'quiz-option w-full text-left px-5 py-4 rounded-2xl border-2 border-slate-200 hover:border-brand-400 hover:bg-brand-50 flex items-center gap-4 font-medium';
+      if (userAnswers[currentQuestion] === i) {
+        btn.classList.remove('border-slate-200');
+        btn.classList.add('border-brand-500', 'bg-brand-50', 'text-brand-700');
+      }
+      btn.innerHTML = `
+        <span class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-sm flex-shrink-0">${letters[i]}</span>
+        <span class="flex-1">${opt}</span>
+      `;
+      btn.onclick = () => selectAnswer(i);
+      container.appendChild(btn);
+    });
+
+    // Buttons
+    document.getElementById('prevBtn').disabled = currentQuestion === 0;
+    const nextBtn = document.getElementById('nextBtn');
+    if (currentQuestion === quizData.length - 1) {
+      nextBtn.innerHTML = 'Selesai <i data-lucide="check" class="w-4 h-4 inline-block"></i>';
+      lucide.createIcons();
+    } else {
+      nextBtn.innerHTML = 'Selanjutnya <i data-lucide="chevron-right" class="w-4 h-4 inline-block"></i>';
+      lucide.createIcons();
+    }
+    nextBtn.disabled = userAnswers[currentQuestion] === null;
+
+    refreshNav();
+  }
+
+  function selectAnswer(i) {
+    userAnswers[currentQuestion] = i;
+    renderQuestion();
+  }
+
+  function nextQuestion() {
+    if (currentQuestion < quizData.length - 1) {
+      currentQuestion++;
+      renderQuestion();
+    } else {
+      finishQuiz();
+    }
+  }
+
+  function prevQuestion() {
+    if (currentQuestion > 0) {
+      currentQuestion--;
+      renderQuestion();
+    }
+  }
+
+  // ---------- TIMER ----------
+  function startTimer() {
+    stopTimer();
+    updateTimerDisplay();
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      updateTimerDisplay();
+      if (timeLeft <= 0) {
+        stopTimer();
+        showToast('⏰ Waktu habis!');
+        finishQuiz();
+      }
+    }, 1000);
+  }
+  function stopTimer() { if (timerInterval) clearInterval(timerInterval); }
+  function updateTimerDisplay() {
+    const m = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+    const s = String(timeLeft % 60).padStart(2, '0');
+    const el = document.getElementById('timer');
+    el.textContent = `${m}:${s}`;
+    if (timeLeft < 60) el.classList.add('text-red-600');
+    else el.classList.remove('text-red-600');
+  }
+
+  // ---------- FINISH & RESULT ----------
+  function finishQuiz() {
+    stopTimer();
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const em = String(Math.floor(elapsed / 60)).padStart(2, '0');
+    const es = String(elapsed % 60).padStart(2, '0');
+
+    let correct = 0;
+    quizData.forEach((d, i) => { if (userAnswers[i] === d.answer) correct++; });
+    const percent = Math.round((correct / quizData.length) * 100);
+
+    // Title logic
+    let emoji = '🎉', title = 'Luar Biasa!', subtitle = 'Kamu menyelesaikan kuis dengan sangat baik!';
+    if (percent === 100)      { emoji = '🏆'; title = 'Sempurna!'; subtitle = 'Skor maksimal! Kamu menguasai materi ini.'; }
+    else if (percent >= 80)   { emoji = '🎉'; title = 'Hebat!';    subtitle = 'Performa yang sangat mengesankan.'; }
+    else if (percent >= 60)   { emoji = '👍'; title = 'Bagus!';    subtitle = 'Terus berlatih untuk hasil lebih baik.'; }
+    else if (percent >= 40)   { emoji = '💪'; title = 'Lumayan!';  subtitle = 'Masih perlu belajar lebih giat ya.'; }
+    else                      { emoji = '📚'; title = 'Ayo Belajar Lagi!'; subtitle = 'Jangan menyerah, coba lagi!'; }
+
+    document.getElementById('resultEmoji').textContent = emoji;
+    document.getElementById('resultTitle').textContent = title;
+    document.getElementById('resultSubtitle').textContent = subtitle;
+    document.getElementById('resultScore').textContent = `${correct}/${quizData.length}`;
+    document.getElementById('resultPercent').textContent = `${percent}%`;
+    document.getElementById('resultTime').textContent = `${em}:${es}`;
+
+    // Review
+    const review = document.getElementById('reviewContainer');
+    review.innerHTML = '';
+    quizData.forEach((d, i) => {
+      const isCorrect = userAnswers[i] === d.answer;
+      const userAns = userAnswers[i] !== null ? d.options[userAnswers[i]] : 'Tidak dijawab';
+      const correctAns = d.options[d.answer];
+      const div = document.createElement('div');
+      div.className = `p-4 rounded-xl border-2 ${isCorrect ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'}`;
+      div.innerHTML = `
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 rounded-lg ${isCorrect ? 'bg-emerald-500' : 'bg-rose-500'} flex items-center justify-center flex-shrink-0">
+            <i data-lucide="${isCorrect ? 'check' : 'x'}" class="w-4 h-4 text-white"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-sm">Soal ${i+1}: ${d.q}</div>
+            <div class="text-xs mt-1 ${isCorrect ? 'text-emerald-700' : 'text-rose-700'}">
+              Jawabanmu: <span class="font-semibold">${userAns}</span>
+              ${!isCorrect ? `<br>Jawaban benar: <span class="font-semibold">${correctAns}</span>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+      review.appendChild(div);
+    });
+    lucide.createIcons();
+
+    // Hide quiz, show result
+    document.getElementById('quizModal').classList.add('hidden');
+    document.getElementById('quizModal').classList.remove('flex');
+    const r = document.getElementById('resultModal');
+    r.classList.remove('hidden');
+    r.classList.add('flex');
+  }
+
+  function restartQuiz() {
+    document.getElementById('resultModal').classList.add('hidden');
+    document.getElementById('resultModal').classList.remove('flex');
+    openQuiz(document.getElementById('quizCategory').textContent.replace('Kuis ', ''));
+  }
+
+  function closeResult() {
+    const r = document.getElementById('resultModal');
+    r.classList.add('hidden');
+    r.classList.remove('flex');
+  }
+
+  // Close modal on backdrop click
+  ['authModal', 'quizModal', 'resultModal'].forEach(id => {
+    document.getElementById(id).addEventListener('click', (e) => {
+      if (e.target.id === id) {
+        if (id === 'quizModal') closeQuiz();
+        else if (id === 'resultModal') closeResult();
+        else closeAuth();
+      }
+    });
+  });
+
+  // ESC to close
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { closeAuth(); closeResult(); }
+  });
+</script>
+</body>
+</html>
